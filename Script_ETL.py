@@ -109,24 +109,25 @@ else:
 
 # 5. Carga incremental con upsert
 def upsert_table(df, table_name, connection):
-    # Cargar chunk en tabla temporal
-    temp_table = f"#{table_name}_temp"
-    df.to_sql(temp_table, con=connection, if_exists="replace", index=False)
+    # 1. Cargar staging en datos_crudos
+    df.to_sql("datos_crudos", con=connection, if_exists="replace", index=False)
 
-    # Construir MERGE dinámico
+    # 2. Construir MERGE dinámico contra la tabla destino
     cols = df.columns.tolist()
     col_list = ", ".join(cols)
     update_set = ", ".join([f"target.{c} = source.{c}" for c in cols])
 
     merge_sql = f"""
         MERGE {table_name} AS target
-        USING {temp_table} AS source
-        ON target.codigoprestador = source.codigoprestador
+        USING datos_crudos AS source
+        ON target.codigohabilitacionsede  = source.codigohabilitacionsede 
         WHEN MATCHED THEN UPDATE SET {update_set}
         WHEN NOT MATCHED THEN INSERT ({col_list})
         VALUES ({", ".join([f"source.{c}" for c in cols])});
     """
-    connection.execute(text(merge_sql))
+
+    # 3. Ejecutar MERGE
+    connection.exec_driver_sql(merge_sql)
 
 # 6. Transacciones seguras
 insertados, actualizados, rechazados = 0, 0, len(rechazos)
@@ -209,3 +210,5 @@ with open("log_proceso.txt", "w", encoding="utf-8") as f:
 
 print("\nEl log también se ha guardado en 'log_proceso.txt'.")
 input("\nProceso finalizado. Presiona ENTER para cerrar la ventana...")
+
+# Notificacion de uso de IA para esturucturacion y creacion del conenido (Copilot)

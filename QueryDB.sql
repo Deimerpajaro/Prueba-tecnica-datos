@@ -73,7 +73,7 @@ SELECT DISTINCT [codigoprestador] AS [CodigoPrestador]
       ,[tipoid] AS [TipoIdentificacion]
       ,[numeroidentificacion] AS [NumeroIdentificacion]
 INTO [dbo].[Prestadores]
-FROM [Prueba].[dbo].[datos_limpios];
+FROM [Prueba].[dbo].[staging_datos_limpios];
 GO
 
 -- Se borra la tabla en caso de que exista para crear la tabla Hija de Registro Especial de Prestadores y Sedes de Servicios de Salud (SedePrestadores), que sera la tabla de uso para los analistas
@@ -98,7 +98,7 @@ SELECT [codigoprestador] AS [CodigoPrestador]
       ,[claseprestador] AS [ClasePrestadorDescripcion]
       ,[fecha_corte_reps] AS [FechaCorte]
 INTO [dbo].[SedePrestadores]
-FROM [Prueba].[dbo].[datos_limpios];
+FROM [Prueba].[dbo].[staging_datos_limpios];
 GO
 
 -- SE modifica la columna para asegurarse de que no acepte valores nulos
