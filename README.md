@@ -55,3 +55,5 @@ Detalle de las transformaciones aplicadas (ej. cantidad de nulos eliminados).
 Tener instalado el ODBC Driver 17 for SQL Server.
 Contar con acceso a internet para realizar las peticiones a la URL de la API.
 La base de datos "Prueba" debe estar creada en la instancia local de SQL Server.
+
+Notificacion de uso de IA para esturucturacion y mejora de contexto(NotebookLM)
