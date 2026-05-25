@@ -1,4 +1,4 @@
--- Paso 1: crea la base de datos
+-- Paso 1:
 -- Creacion de la Base de datos
 IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'Prueba')
 BEGIN
@@ -9,64 +9,62 @@ GO
 -- Se selecciona la Base de datos a usar
 USE Prueba;
 
--- Paso 2: ejecuta Script_ETL.py antes de proceder
-
-DROP TABLE datos_crudos
-DROP TABLE datos_limpios
-
--- Paso 3: una vez ejecutado el Script_ETL.py podemos continuar con los siguientes pasos en donde se realizara la limpieza y modificaciones necesarias para la correcta estructura de la base de datos
--- Creamos ta tabla del DataLake()
+-- Paso 2: 
+-- Creamos la tabla del DataLake(SIN MODIFICACIONES)
 CREATE TABLE datos_crudos (
     codigoprestador VARCHAR(50),
-	nombreprestador VARCHAR(100),
+	nombreprestador VARCHAR(255),
     codigohabilitacionsede VARCHAR(50),
     nombresede VARCHAR(255),
 	tipoid VARCHAR(10),
 	numeroidentificacion BIGINT,
-    naturalezajuridica VARCHAR(100),
+    naturalezajuridica VARCHAR(255),
     ese VARCHAR(10),
     municipio_prestador VARCHAR(10),
-    departamentoprestadordesc VARCHAR(100),
-    municipioprestadordesc VARCHAR(100),
+    departamentoprestadordesc VARCHAR(255),
+    municipioprestadordesc VARCHAR(255),
     direccionprestador VARCHAR(255),
-    email_prestador VARCHAR(150),
-    telefonoprestador VARCHAR(100),
+    email_prestador VARCHAR(255),
+    telefonoprestador VARCHAR(255),
     municipiosede VARCHAR(10),
-    departamentodededesc VARCHAR(100),
-    municipiosededesc VARCHAR(100),
+    departamentodededesc VARCHAR(255),
+    municipiosededesc VARCHAR(255),
     direcci_nsede VARCHAR(255),
     email_sede VARCHAR(255),
-    t_lefonosede VARCHAR(100),
-    claseprestador VARCHAR(100),
+    t_lefonosede VARCHAR(255),
+    claseprestador VARCHAR(255),
     fecha_corte_reps VARCHAR(100)
 );
 
--- Creamos ta tabla del DataLake()
+-- Creamos ta tabla del DataLake(Con limpieza)
 CREATE TABLE datos_limpios (
     codigoprestador VARCHAR(50),
-	nombreprestador VARCHAR(100),
+	nombreprestador VARCHAR(255),
     codigohabilitacionsede VARCHAR(50),
     nombresede VARCHAR(255),
 	tipoid VARCHAR(10),
 	numeroidentificacion BIGINT,
-    naturalezajuridica VARCHAR(100),
+    naturalezajuridica VARCHAR(255),
     ese VARCHAR(10),
     municipio_prestador VARCHAR(10),
-    departamentoprestadordesc VARCHAR(100),
-    municipioprestadordesc VARCHAR(100),
+    departamentoprestadordesc VARCHAR(255),
+    municipioprestadordesc VARCHAR(255),
     direccionprestador VARCHAR(255),
-    email_prestador VARCHAR(150),
-    telefonoprestador VARCHAR(100),
+    email_prestador VARCHAR(255),
+    telefonoprestador VARCHAR(255),
     municipiosede VARCHAR(10),
-    departamentodededesc VARCHAR(100),
-    municipiosededesc VARCHAR(100),
+    departamentodededesc VARCHAR(255),
+    municipiosededesc VARCHAR(255),
     direcci_nsede VARCHAR(255),
     email_sede VARCHAR(255),
-    t_lefonosede VARCHAR(100),
-    claseprestador VARCHAR(100),
+    t_lefonosede VARCHAR(255),
+    claseprestador VARCHAR(255),
     fecha_corte_reps VARCHAR(100)
 );
 
+-- Paso 3: ejecuta Script_ETL.py antes de proceder
+
+-- Paso 4: una vez ejecutado el Script_ETL.py podemos continuar con los siguientes pasos
 
 -- Se borra la tabla en caso de que exista para crear la tabla madre de Registro Especial de Prestadores y Sedes de Servicios de Salud (Prestadores), que sera la tabla de uso para los analistas
 DROP TABLE IF EXISTS [dbo].[Prestadores]
@@ -123,6 +121,8 @@ ADD CONSTRAINT FK_SedePrestadores_Prestadores
 FOREIGN KEY (CodigoPrestador)
 REFERENCES [dbo].[Prestadores] (CodigoPrestador);
 GO
+
+-- Paso 5: Crear una vista a la vez
 
 --Vistas
 --Creacion de la vista del Directorio de Sedes por Región
