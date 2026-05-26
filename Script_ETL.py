@@ -36,8 +36,10 @@ while True:
             break
         except Exception as e:
             retries += 1
-            print(f"Error al leer datos desde la API (intento {retries}/{max_retries}): {e}")
-            time.sleep(wait_seconds)
+            wait = wait_seconds * (2 ** (retries - 1))
+            print(f"Error al leer datos (intento {retries}/{max_retries}): {e}")
+            time.sleep(wait)
+
 
     if temp_df is None:
         raise Exception(f"Falla definitiva al descargar bloque {bloque} (Offset: {offset}).")
@@ -82,8 +84,8 @@ if not df_limpios.empty:
     log.append(f"Nulos iniciales: {nulos_iniciales}, filas eliminadas: {len(df_crudos) - len(df_limpios)}")
 
     # Duplicados
-    duplicados = df_limpios.duplicated().sum()
-    df_limpios = df_limpios.drop_duplicates()
+    duplicados = df_limpios.duplicated(subset=["codigohabilitacionsede"]).sum()
+    df_limpios = df_limpios.drop_duplicates(subset=["codigohabilitacionsede"])
     log.append(f"Duplicados eliminados: {duplicados}")
 
     # Estandarización de texto (excepto campos excluidos)
@@ -94,54 +96,37 @@ if not df_limpios.empty:
         elif col in campos_excluidos:
             df_limpios[col] = df_limpios[col].fillna(0)
 
-    # Estandarización de fechas
-    if "fecha_corte_reps" in df_limpios.columns:
-        df_limpios["fecha_corte_reps"] = pd.to_datetime(df_limpios["fecha_corte_reps"], errors="coerce")
-        invalid_dates = df_limpios[df_limpios["fecha_corte_reps"].isnull()]
-        if not invalid_dates.empty:
-            invalid_dates["razon_rechazo"] = "Fecha inválida"
-            rechazos = pd.concat([rechazos, invalid_dates])
-            df_limpios = df_limpios.dropna(subset=["fecha_corte_reps"])
-        log.append(f"Fechas inválidas rechazadas: {len(invalid_dates)}")
+# 5. Función para cargar directamente en staging
+def cargar_staging(df, staging_table, connection):
+    """
+    Reemplaza directamente la tabla staging con los datos del DataFrame.
+    """
+    df.to_sql(staging_table, con=connection, if_exists="replace", index=False)
+    print(f"Datos cargados directamente en '{staging_table}' ({len(df)} filas).")
 
-else:
-    log.append("No se realizaron transformaciones porque no se descargaron datos.")
-
-# 5. Carga incremental con upsert
-def upsert_table(df, table_name, connection):
-    # 1. Cargar staging en datos_crudos
-    df.to_sql("datos_crudos", con=connection, if_exists="replace", index=False)
-
-    # 2. Construir MERGE dinámico contra la tabla destino
+    # 2. Construir MERGE dinámico
     cols = df.columns.tolist()
     col_list = ", ".join(cols)
     update_set = ", ".join([f"target.{c} = source.{c}" for c in cols])
-
-    merge_sql = f"""
-        MERGE {table_name} AS target
-        USING datos_crudos AS source
-        ON target.codigohabilitacionsede  = source.codigohabilitacionsede 
-        WHEN MATCHED THEN UPDATE SET {update_set}
-        WHEN NOT MATCHED THEN INSERT ({col_list})
-        VALUES ({", ".join([f"source.{c}" for c in cols])});
-    """
-
-    # 3. Ejecutar MERGE
-    connection.exec_driver_sql(merge_sql)
 
 # 6. Transacciones seguras
 insertados, actualizados, rechazados = 0, 0, len(rechazos)
 
 try:
     with engine.begin() as connection:
+        # Guardar datos crudos directamente en staging
         if not df_crudos.empty:
-            upsert_table(df_crudos, "datos_crudos", connection)
+            cargar_staging(df_crudos, "staging_datos_crudos", connection)
             insertados += len(df_crudos)
+
+        # Guardar datos limpios directamente en staging
         if not df_limpios.empty:
-            upsert_table(df_limpios, "datos_limpios", connection)
+            cargar_staging(df_limpios, "staging_datos_limpios", connection)
             insertados += len(df_limpios)
+
+        # Guardar rechazos
         if not rechazos.empty:
-            rechazos.to_sql("rechazos", con=connection, if_exists="append", index=False)
+            rechazos.to_sql("rechazos", con=connection, if_exists="replace", index=False)
 
         # Tabla de control de cargas
         connection.execute(text("""
@@ -153,22 +138,20 @@ try:
                 fuente VARCHAR(255),
                 registros_leidos INT,
                 registros_insertados INT,
-                registros_actualizados INT,
                 registros_rechazados INT,
                 errores VARCHAR(MAX)
             )
         """))
 
         connection.execute(text("""
-            INSERT INTO etl_log (fecha_inicio, fecha_fin, fuente, registros_leidos, registros_insertados, registros_actualizados, registros_rechazados, errores)
-            VALUES (:fi, :ff, :fuente, :leidos, :ins, :upd, :rej, :err)
+            INSERT INTO etl_log (fecha_inicio, fecha_fin, fuente, registros_leidos, registros_insertados, registros_rechazados, errores)
+            VALUES (:fi, :ff, :fuente, :leidos, :ins, :rej, :err)
         """), {
             "fi": datetime.fromtimestamp(start_time),
             "ff": datetime.now(),
             "fuente": base_url,
             "leidos": len(df_crudos),
             "ins": insertados,
-            "upd": actualizados,
             "rej": rechazados,
             "err": "; ".join(log)
         })
@@ -208,7 +191,38 @@ with open("log_proceso.txt", "w", encoding="utf-8") as f:
     for entry in log:
         f.write(" - " + entry + "\n")
 
+# 9. Revisar cambios y actualizar tablas
+def actualizar_si_cambios(engine, df_crudos, df_limpios, rechazos):
+    try:
+        with engine.begin() as connection:
+            # Revisar tabla datos_crudos
+            df_existente_crudos = pd.read_sql("SELECT * FROM datos_crudos", con=connection)
+            if not df_existente_crudos.equals(df_crudos):
+                df_crudos.to_sql("datos_crudos", con=connection, if_exists="replace", index=False)
+                print("Tabla 'datos_crudos' actualizada con nuevos cambios.")
+            else:
+                print("No se realizaron cambios en 'datos_crudos'.")
+
+            # Revisar tabla datos_limpios
+            df_existente_limpios = pd.read_sql("SELECT * FROM datos_limpios", con=connection)
+            if not df_existente_limpios.equals(df_limpios):
+                df_limpios.to_sql("datos_limpios", con=connection, if_exists="replace", index=False)
+                print("Tabla 'datos_limpios' actualizada con nuevos cambios.")
+            else:
+                print("No se realizaron cambios en 'datos_limpios'.")
+
+            # Revisar tabla rechazos
+            df_existente_rechazos = pd.read_sql("SELECT * FROM rechazos", con=connection)
+            if not df_existente_rechazos.equals(rechazos):
+                rechazos.to_sql("rechazos", con=connection, if_exists="replace", index=False)
+                print("Tabla 'rechazos' actualizada con nuevos cambios.")
+            else:
+                print("No se realizaron cambios en 'rechazos'.")
+
+    except Exception as e:
+        print(f"Error al revisar/actualizar tablas: {e}")
+
+
 print("\nEl log también se ha guardado en 'log_proceso.txt'.")
 input("\nProceso finalizado. Presiona ENTER para cerrar la ventana...")
 
-# Notificacion de uso de IA para esturucturacion y creacion del conenido (Copilot)
