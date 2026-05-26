@@ -6,61 +6,9 @@ BEGIN
 END
 GO
 
+-- Paso 2: 
 -- Se selecciona la Base de datos a usar
 USE Prueba;
-
--- Paso 2: 
--- Creamos la tabla del DataLake(SIN MODIFICACIONES)
-CREATE TABLE datos_crudos (
-    codigoprestador VARCHAR(50),
-	nombreprestador VARCHAR(255),
-    codigohabilitacionsede VARCHAR(50),
-    nombresede VARCHAR(255),
-	tipoid VARCHAR(10),
-	numeroidentificacion BIGINT,
-    naturalezajuridica VARCHAR(255),
-    ese VARCHAR(10),
-    municipio_prestador VARCHAR(10),
-    departamentoprestadordesc VARCHAR(255),
-    municipioprestadordesc VARCHAR(255),
-    direccionprestador VARCHAR(255),
-    email_prestador VARCHAR(255),
-    telefonoprestador VARCHAR(255),
-    municipiosede VARCHAR(10),
-    departamentodededesc VARCHAR(255),
-    municipiosededesc VARCHAR(255),
-    direcci_nsede VARCHAR(255),
-    email_sede VARCHAR(255),
-    t_lefonosede VARCHAR(255),
-    claseprestador VARCHAR(255),
-    fecha_corte_reps VARCHAR(100)
-);
-
--- Creamos ta tabla del DataLake(Con limpieza)
-CREATE TABLE datos_limpios (
-    codigoprestador VARCHAR(50),
-	nombreprestador VARCHAR(255),
-    codigohabilitacionsede VARCHAR(50),
-    nombresede VARCHAR(255),
-	tipoid VARCHAR(10),
-	numeroidentificacion BIGINT,
-    naturalezajuridica VARCHAR(255),
-    ese VARCHAR(10),
-    municipio_prestador VARCHAR(10),
-    departamentoprestadordesc VARCHAR(255),
-    municipioprestadordesc VARCHAR(255),
-    direccionprestador VARCHAR(255),
-    email_prestador VARCHAR(255),
-    telefonoprestador VARCHAR(255),
-    municipiosede VARCHAR(10),
-    departamentodededesc VARCHAR(255),
-    municipiosededesc VARCHAR(255),
-    direcci_nsede VARCHAR(255),
-    email_sede VARCHAR(255),
-    t_lefonosede VARCHAR(255),
-    claseprestador VARCHAR(255),
-    fecha_corte_reps VARCHAR(100)
-);
 
 -- Paso 3: ejecuta Script_ETL.py antes de proceder
 
@@ -167,4 +115,3 @@ SELECT
 FROM dbo.SedePrestadores
 GROUP BY DepartamentoPrestadorDescripcion, municipiosede, ClasePrestadorDescripcion;
 
---
