@@ -96,6 +96,27 @@ if not df_limpios.empty:
         elif col in campos_excluidos:
             df_limpios[col] = df_limpios[col].fillna(0)
 
+    # Estandarización de fechas en df_limpios
+if "fecha_corte_reps" in df_limpios.columns:
+    try:
+        # Extraer la parte de fecha/hora eliminando el prefijo
+        df_limpios["fecha_corte_reps"] = df_limpios["fecha_corte_reps"].str.extract(
+            r'([A-Za-z]{3}\s+\d{1,2}\s+\d{4}\s+\d{1,2}:\d{2}[APM]{2})'
+        )
+
+        # Convertir a datetime usando pandas
+        df_limpios["fecha_corte_reps"] = pd.to_datetime(
+            df_limpios["fecha_corte_reps"], format="%b %d %Y %I:%M%p", errors="coerce"
+        )
+
+        # Convertir a string en formato SQL Server
+        df_limpios["fecha_corte_reps"] = df_limpios["fecha_corte_reps"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        log.append("Columna 'fecha_corte_reps' estandarizada correctamente.")
+
+    except Exception as e:
+        log.append(f"Error al limpiar 'fecha_corte_reps': {e}")
+
 # 5. Función para cargar directamente en staging
 def cargar_staging(df, staging_table, connection):
     """
